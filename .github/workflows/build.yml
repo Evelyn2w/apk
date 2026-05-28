@@ -28,13 +28,37 @@ jobs:
       - name: Install SDK
         run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
 
-      - name: Create project structure
+      - name: Generate full project with Python
         run: |
-          echo 'rootProject.name = "Gosloto645"' > settings.gradle
-          echo 'include ":app"' >> settings.gradle
+          pip install Pillow -q
+          python3 << 'PYEOF'
+          import os, math
+          from PIL import Image, ImageDraw
 
-          cat > build.gradle << 'GRADLE'
-          buildscript {
+          # ── directories
+          dirs = [
+              "app/src/main/java/com/gosloto645/app",
+              "app/src/main/res/values",
+              "app/src/main/res/drawable",
+              "app/src/main/res/mipmap-mdpi",
+              "app/src/main/res/mipmap-hdpi",
+              "app/src/main/res/mipmap-xhdpi",
+              "app/src/main/res/mipmap-xxhdpi",
+              "app/src/main/res/mipmap-xxxhdpi",
+          ]
+          for d in dirs:
+              os.makedirs(d, exist_ok=True)
+
+          def w(path, content):
+              with open(path, 'w') as f:
+                  f.write(content)
+              print("OK:", path)
+
+          # ── settings.gradle
+          w("settings.gradle", 'rootProject.name = "Gosloto645"\ninclude ":app"\n')
+
+          # ── build.gradle root
+          w("build.gradle", """buildscript {
               repositories { google(); mavenCentral() }
               dependencies {
                   classpath 'com.android.tools.build:gradle:8.2.2'
@@ -42,25 +66,13 @@ jobs:
               }
           }
           allprojects { repositories { google(); mavenCentral() } }
-          GRADLE
+          """)
 
-          cat > gradle.properties << 'PROPS'
-          org.gradle.jvmargs=-Xmx2048m
-          android.useAndroidX=true
-          android.enableJetifier=true
-          PROPS
+          # ── gradle.properties
+          w("gradle.properties", "org.gradle.jvmargs=-Xmx2048m\nandroid.useAndroidX=true\nandroid.enableJetifier=true\n")
 
-          mkdir -p app/src/main/java/com/gosloto645/app
-          mkdir -p app/src/main/res/values
-          mkdir -p app/src/main/res/drawable
-          mkdir -p app/src/main/res/mipmap-hdpi
-          mkdir -p app/src/main/res/mipmap-mdpi
-          mkdir -p app/src/main/res/mipmap-xhdpi
-          mkdir -p app/src/main/res/mipmap-xxhdpi
-          mkdir -p app/src/main/res/mipmap-xxxhdpi
-
-          cat > app/build.gradle << 'APPGRADLE'
-          plugins {
+          # ── app/build.gradle
+          w("app/build.gradle", """plugins {
               id 'com.android.application'
               id 'kotlin-android'
           }
@@ -88,12 +100,10 @@ jobs:
               implementation 'com.squareup.okhttp3:okhttp:4.12.0'
               implementation 'org.jsoup:jsoup:1.17.2'
           }
-          APPGRADLE
+          """)
 
-      - name: Create manifest and resources
-        run: |
-          cat > app/src/main/AndroidManifest.xml << 'MANIFEST'
-          <?xml version="1.0" encoding="utf-8"?>
+          # ── AndroidManifest.xml
+          w("app/src/main/AndroidManifest.xml", """<?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.INTERNET"/>
               <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
@@ -119,20 +129,18 @@ jobs:
                   <activity android:name=".HistoryActivity" android:exported="false"/>
               </application>
           </manifest>
-          MANIFEST
+          """)
 
-          cat > app/src/main/res/values/colors.xml << 'COLORS'
-          <?xml version="1.0" encoding="utf-8"?>
+          # ── res/values
+          w("app/src/main/res/values/colors.xml", """<?xml version="1.0" encoding="utf-8"?>
           <resources>
               <color name="blue_primary">#1565C0</color>
               <color name="blue_dark">#0D47A1</color>
               <color name="blue_bg">#F0F7FF</color>
               <color name="white">#FFFFFF</color>
-          </resources>
-          COLORS
+          </resources>""")
 
-          cat > app/src/main/res/values/themes.xml << 'THEMES'
-          <?xml version="1.0" encoding="utf-8"?>
+          w("app/src/main/res/values/themes.xml", """<?xml version="1.0" encoding="utf-8"?>
           <resources>
               <style name="Theme.Gosloto" parent="Theme.MaterialComponents.Light.NoActionBar">
                   <item name="colorPrimary">@color/blue_primary</item>
@@ -141,264 +149,544 @@ jobs:
                   <item name="android:windowBackground">@color/blue_bg</item>
                   <item name="android:statusBarColor">@color/blue_dark</item>
               </style>
-          </resources>
-          THEMES
+          </resources>""")
 
-          cat > app/src/main/res/values/strings.xml << 'STRINGS'
-          <?xml version="1.0" encoding="utf-8"?>
+          w("app/src/main/res/values/strings.xml", """<?xml version="1.0" encoding="utf-8"?>
           <resources>
               <string name="app_name">Gosloto 6/45</string>
-          </resources>
-          STRINGS
+          </resources>""")
 
-      - name: Generate icons
-        run: |
-          pip install Pillow -q
-          python3 << 'PYEOF'
-          from PIL import Image, ImageDraw
-          import math
+          # ── Icons
           def make_icon(size):
-              img = Image.new("RGBA",(size,size),(0,0,0,0))
+              img = Image.new("RGBA", (size, size), (0,0,0,0))
               d = ImageDraw.Draw(img)
-              d.rounded_rectangle([0,0,size,size],radius=int(size*0.22),fill=(21,101,192,255))
-              br=size*0.105; cx,cy=size/2,size/2
-              cols=[(255,255,255),(255,215,64),(255,255,255),(255,215,64),(255,255,255),(255,215,64)]
+              d.rounded_rectangle([0,0,size,size], radius=int(size*0.22), fill=(21,101,192,255))
+              br = size * 0.105
+              cx, cy = size/2, size/2
+              cols = [(255,255,255),(255,215,64),(255,255,255),(255,215,64),(255,255,255),(255,215,64)]
               for i in range(6):
-                  a=math.radians(i*60-30)
-                  x=cx+math.cos(a)*size*0.27; y=cy+math.sin(a)*size*0.27
-                  d.ellipse([x-br,y-br,x+br,y+br],fill=cols[i]+(255,))
+                  a = math.radians(i*60-30)
+                  x = cx + math.cos(a)*size*0.27
+                  y = cy + math.sin(a)*size*0.27
+                  d.ellipse([x-br,y-br,x+br,y+br], fill=cols[i]+(255,))
               return img
-          base='app/src/main/res'
-          for f,s in [('mipmap-mdpi',48),('mipmap-hdpi',72),('mipmap-xhdpi',96),('mipmap-xxhdpi',144),('mipmap-xxxhdpi',192)]:
-              make_icon(s).save(f'{base}/{f}/ic_launcher.png')
-          print("Icons created")
-          PYEOF
 
-      - name: Write Kotlin source files
-        run: |
-          D=app/src/main/java/com/gosloto645/app
+          base = "app/src/main/res"
+          for folder, size in [("mipmap-mdpi",48),("mipmap-hdpi",72),("mipmap-xhdpi",96),("mipmap-xxhdpi",144),("mipmap-xxxhdpi",192)]:
+              make_icon(size).save(f"{base}/{folder}/ic_launcher.png")
 
-          python3 << 'PYEOF'
-          import os
-          D = "app/src/main/java/com/gosloto645/app"
+          # ── BallView.kt
+          kt = "app/src/main/java/com/gosloto645/app"
 
-          files = {}
+          w(kt+"/BallView.kt", """package com.gosloto645.app
+          import android.content.Context
+          import android.graphics.*
+          import android.util.AttributeSet
+          import android.view.View
 
-          files["BallView.kt"] = '''package com.gosloto645.app
-          import android.content.Context; import android.graphics.*; import android.util.AttributeSet; import android.view.View
           enum class BallType { NORMAL, HOT, COLD, OVERDUE, LATEST, MORNING, EVENING }
-          class BallView @JvmOverloads constructor(ctx:Context,attrs:AttributeSet?=null,def:Int=0):View(ctx,attrs,def){
-              var number=0; var ballType=BallType.NORMAL
-              private val bp=Paint(Paint.ANTI_ALIAS_FLAG)
-              private val pp=Paint(Paint.ANTI_ALIAS_FLAG).apply{style=Paint.Style.STROKE;strokeWidth=4f}
-              private val tp=Paint(Paint.ANTI_ALIAS_FLAG).apply{textAlign=Paint.Align.CENTER;typeface=Typeface.create(Typeface.DEFAULT,Typeface.BOLD)}
-              override fun onDraw(c:Canvas){
-                  val cx=width/2f;val cy=height/2f;val r=minOf(width,height)/2f-4f
-                  val(bg,bd,tx)=when(ballType){
-                      BallType.HOT->Triple(Color.parseColor("#FFEBEE"),Color.parseColor("#FFCDD2"),Color.parseColor("#B71C1C"))
-                      BallType.COLD->Triple(Color.parseColor("#E8F5E9"),Color.parseColor("#A5D6A7"),Color.parseColor("#1B5E20"))
-                      BallType.OVERDUE->Triple(Color.parseColor("#F3E5F5"),Color.parseColor("#CE93D8"),Color.parseColor("#4A148C"))
-                      BallType.LATEST->Triple(Color.WHITE,Color.parseColor("#90CAF9"),Color.parseColor("#1565C0"))
-                      BallType.MORNING->Triple(Color.parseColor("#FFF8E1"),Color.parseColor("#FFD54F"),Color.parseColor("#E65100"))
-                      BallType.EVENING->Triple(Color.parseColor("#E8EAF6"),Color.parseColor("#9FA8DA"),Color.parseColor("#1A237E"))
-                      else->Triple(Color.parseColor("#E3F0FF"),Color.parseColor("#90CAF9"),Color.parseColor("#0D47A1"))
-                  }
-                  bp.color=bg;pp.color=bd;tp.color=tx;tp.textSize=r*0.7f
-                  c.drawCircle(cx,cy,r,bp);c.drawCircle(cx,cy,r,pp)
-                  c.drawText("$number",cx,cy-(tp.ascent()+tp.descent())/2,tp)
+
+          class BallView @JvmOverloads constructor(
+              ctx: Context, attrs: AttributeSet? = null, def: Int = 0
+          ) : View(ctx, attrs, def) {
+
+              var number = 0
+              var ballType = BallType.NORMAL
+
+              private val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+              private val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                  style = Paint.Style.STROKE
+                  strokeWidth = 4f
               }
-              override fun onMeasure(w:Int,h:Int){super.onMeasure(w,h);setMeasuredDimension(measuredWidth,measuredWidth)}
-          }'''
+              private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                  textAlign = Paint.Align.CENTER
+                  typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+              }
 
-          files["DataService.kt"] = '''package com.gosloto645.app
-          import android.util.Log; import okhttp3.OkHttpClient; import okhttp3.Request
-          import org.jsoup.Jsoup; import java.util.concurrent.TimeUnit
-          data class DrawResult(val drawNumber:Int,val time:String,val date:String,val numbers:List<Int>,val isMorning:Boolean)
-          data class NumberStats(val hot:List<Int>,val cold:List<Int>,val overdue:List<Int>,val frequency:Map<Int,Int>)
+              override fun onDraw(canvas: Canvas) {
+                  val cx = width / 2f
+                  val cy = height / 2f
+                  val r = minOf(width, height) / 2f - 4f
+                  val bg: Int
+                  val bd: Int
+                  val tx: Int
+                  when (ballType) {
+                      BallType.HOT -> { bg=Color.parseColor("#FFEBEE"); bd=Color.parseColor("#FFCDD2"); tx=Color.parseColor("#B71C1C") }
+                      BallType.COLD -> { bg=Color.parseColor("#E8F5E9"); bd=Color.parseColor("#A5D6A7"); tx=Color.parseColor("#1B5E20") }
+                      BallType.OVERDUE -> { bg=Color.parseColor("#F3E5F5"); bd=Color.parseColor("#CE93D8"); tx=Color.parseColor("#4A148C") }
+                      BallType.LATEST -> { bg=Color.WHITE; bd=Color.parseColor("#90CAF9"); tx=Color.parseColor("#1565C0") }
+                      BallType.MORNING -> { bg=Color.parseColor("#FFF8E1"); bd=Color.parseColor("#FFD54F"); tx=Color.parseColor("#E65100") }
+                      BallType.EVENING -> { bg=Color.parseColor("#E8EAF6"); bd=Color.parseColor("#9FA8DA"); tx=Color.parseColor("#1A237E") }
+                      else -> { bg=Color.parseColor("#E3F0FF"); bd=Color.parseColor("#90CAF9"); tx=Color.parseColor("#0D47A1") }
+                  }
+                  bgPaint.color = bg
+                  borderPaint.color = bd
+                  textPaint.color = tx
+                  textPaint.textSize = r * 0.7f
+                  canvas.drawCircle(cx, cy, r, bgPaint)
+                  canvas.drawCircle(cx, cy, r, borderPaint)
+                  canvas.drawText(number.toString(), cx, cy - (textPaint.ascent() + textPaint.descent()) / 2, textPaint)
+              }
+
+              override fun onMeasure(w: Int, h: Int) {
+                  super.onMeasure(w, h)
+                  setMeasuredDimension(measuredWidth, measuredWidth)
+              }
+          }
+          """)
+
+          # ── DataService.kt
+          w(kt+"/DataService.kt", """package com.gosloto645.app
+          import android.util.Log
+          import okhttp3.OkHttpClient
+          import okhttp3.Request
+          import org.jsoup.Jsoup
+          import java.util.concurrent.TimeUnit
+
+          data class DrawResult(
+              val drawNumber: Int,
+              val time: String,
+              val date: String,
+              val numbers: List<Int>,
+              val isMorning: Boolean
+          )
+
+          data class NumberStats(
+              val hot: List<Int>,
+              val cold: List<Int>,
+              val overdue: List<Int>,
+              val frequency: Map<Int, Int>
+          )
+
           object DataService {
-              private val client=OkHttpClient.Builder().connectTimeout(10,TimeUnit.SECONDS).readTimeout(10,TimeUnit.SECONDS).build()
-              val FALLBACK=listOf(
-                  DrawResult(17442,"18:40 MSK","May 18, 2026",listOf(11,21,27,29,40,45),false),
-                  DrawResult(17441,"18:25 MSK","May 18, 2026",listOf(3,4,15,17,22,36),false),
-                  DrawResult(17440,"16:30 MSK","May 18, 2026",listOf(19,20,27,29,37,45),false),
-                  DrawResult(17439,"13:55 MSK","May 18, 2026",listOf(9,10,26,30,34,42),true),
-                  DrawResult(17438,"13:40 MSK","May 18, 2026",listOf(2,5,9,12,22,28),true),
-                  DrawResult(17437,"13:25 MSK","May 18, 2026",listOf(9,15,26,34,40,42),true),
-                  DrawResult(17436,"11:30 MSK","May 18, 2026",listOf(1,2,31,34,36,39),true),
-                  DrawResult(17435,"10:00 MSK","May 18, 2026",listOf(6,11,21,27,28,43),true),
-                  DrawResult(17434,"22:59 MSK","May 17, 2026",listOf(3,9,23,30,31,35),false),
-                  DrawResult(17433,"22:00 MSK","May 17, 2026",listOf(7,19,21,32,34,36),false),
-                  DrawResult(17432,"18:55 MSK","May 17, 2026",listOf(2,8,12,14,18,43),false),
-                  DrawResult(17431,"18:40 MSK","May 17, 2026",listOf(10,13,15,20,23,44),false),
-                  DrawResult(17430,"18:25 MSK","May 17, 2026",listOf(10,14,17,31,34,36),false),
-                  DrawResult(17429,"16:30 MSK","May 17, 2026",listOf(3,7,9,28,33,44),false),
-                  DrawResult(17428,"13:55 MSK","May 17, 2026",listOf(14,15,16,20,33,37),true),
-                  DrawResult(17427,"13:40 MSK","May 17, 2026",listOf(3,13,24,27,41,44),true),
-                  DrawResult(17426,"13:25 MSK","May 17, 2026",listOf(19,24,29,34,36,43),true),
-                  DrawResult(17425,"11:30 MSK","May 17, 2026",listOf(1,5,6,21,31,40),true),
-                  DrawResult(17424,"10:00 MSK","May 17, 2026",listOf(5,8,19,23,28,37),true),
-                  DrawResult(17423,"22:59 MSK","May 16, 2026",listOf(2,3,25,26,35,39),false))
-              fun fetchResults():List<DrawResult>{
-                  return try{val r=client.newCall(Request.Builder().url("https://gosloto.co.za/6x45/results").header("User-Agent","Mozilla/5.0").build()).execute()
-                      val doc=Jsoup.parse(r.body?.string()?:return FALLBACK);val res=mutableListOf<DrawResult>()
-                      for(row in doc.select(".result-row,.draw-result,tr.result")){
-                          val nums=row.select(".ball,.number,.num,td").mapNotNull{it.text().trim().toIntOrNull()}.filter{it in 1..45}
-                          if(nums.size==6){val dn=row.select(".draw-number").firstOrNull()?.text()?.replace(Regex("[^0-9]"),"")?.toIntOrNull()?:0
-                              val tm=row.select(".time,.draw-time").firstOrNull()?.text()?:"00:00 MSK"
-                              val dt=row.select(".date,.draw-date").firstOrNull()?.text()?:""
-                              val im=try{tm.split(":")[0].toInt()<14}catch(e:Exception){false}
-                              if(dn>0)res.add(DrawResult(dn,tm,dt,nums.sorted(),im))}
-                          if(res.size>=20)break}
-                      if(res.size>=5)res else FALLBACK}catch(e:Exception){FALLBACK}}
-              fun computeStats(draws:List<DrawResult>):NumberStats{
-                  val freq=(1..45).associateWith{0}.toMutableMap();val ls=(1..45).associateWith{9999}.toMutableMap()
-                  draws.forEachIndexed{idx,d->d.numbers.forEach{n->freq[n]=(freq[n]?:0)+1;if(ls[n]==9999)ls[n]=idx}}
-                  val s=freq.entries.sortedByDescending{it.value}
-                  return NumberStats(s.take(10).map{it.key},s.takeLast(10).map{it.key},ls.entries.sortedByDescending{it.value}.take(10).map{it.key},freq)}
-              fun fetchPredictions():Pair<List<Int>,List<Int>>{
-                  return try{val r=client.newCall(Request.Builder().url("https://gosloto6x45.com").header("User-Agent","Mozilla/5.0").build()).execute()
-                      val doc=Jsoup.parse(r.body?.string()?:return fallbackPred())
-                      val m=doc.select(".morning .ball").mapNotNull{it.text().trim().toIntOrNull()}.filter{it in 1..45}
-                      val e=doc.select(".evening .ball").mapNotNull{it.text().trim().toIntOrNull()}.filter{it in 1..45}
-                      if(m.size==6&&e.size==6)Pair(m,e) else fallbackPred()}catch(e:Exception){fallbackPred()}}
-              fun fallbackPred()=Pair(listOf(9,18,22,34,38,45),listOf(7,15,27,31,34,43))
-          }'''
+              private val client = OkHttpClient.Builder()
+                  .connectTimeout(10, TimeUnit.SECONDS)
+                  .readTimeout(10, TimeUnit.SECONDS)
+                  .build()
 
-          files["SplashActivity.kt"] = '''package com.gosloto645.app
-          import android.content.Intent; import android.graphics.*; import android.os.*
-          import android.view.Gravity; import android.view.animation.AlphaAnimation
-          import android.widget.*; import androidx.appcompat.app.AppCompatActivity
-          class SplashActivity:AppCompatActivity(){
-              override fun onCreate(s:Bundle?){super.onCreate(s)
-                  val dp=resources.displayMetrics.density
-                  val root=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;gravity=Gravity.CENTER
-                      setBackgroundColor(Color.parseColor("#1565C0"));layoutParams=LinearLayout.LayoutParams(-1,-1)}
-                  val lb=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;gravity=Gravity.CENTER
-                      background=android.graphics.drawable.GradientDrawable().apply{setColor(Color.WHITE);cornerRadius=24*dp}
-                      val sz=(90*dp).toInt();layoutParams=LinearLayout.LayoutParams(sz,sz)}
-                  lb.addView(TextView(this).apply{text="G";textSize=32f;setTextColor(Color.parseColor("#1565C0"));setTypeface(typeface,Typeface.BOLD);gravity=Gravity.CENTER})
-                  lb.addView(TextView(this).apply{text="6/45";textSize=13f;setTextColor(Color.parseColor("#1565C0"));setTypeface(typeface,Typeface.BOLD);gravity=Gravity.CENTER})
+              val FALLBACK = listOf(
+                  DrawResult(17442,"18:40 MSK","May 18, 2026", listOf(11,21,27,29,40,45),false),
+                  DrawResult(17441,"18:25 MSK","May 18, 2026", listOf(3,4,15,17,22,36),false),
+                  DrawResult(17440,"16:30 MSK","May 18, 2026", listOf(19,20,27,29,37,45),false),
+                  DrawResult(17439,"13:55 MSK","May 18, 2026", listOf(9,10,26,30,34,42),true),
+                  DrawResult(17438,"13:40 MSK","May 18, 2026", listOf(2,5,9,12,22,28),true),
+                  DrawResult(17437,"13:25 MSK","May 18, 2026", listOf(9,15,26,34,40,42),true),
+                  DrawResult(17436,"11:30 MSK","May 18, 2026", listOf(1,2,31,34,36,39),true),
+                  DrawResult(17435,"10:00 MSK","May 18, 2026", listOf(6,11,21,27,28,43),true),
+                  DrawResult(17434,"22:59 MSK","May 17, 2026", listOf(3,9,23,30,31,35),false),
+                  DrawResult(17433,"22:00 MSK","May 17, 2026", listOf(7,19,21,32,34,36),false),
+                  DrawResult(17432,"18:55 MSK","May 17, 2026", listOf(2,8,12,14,18,43),false),
+                  DrawResult(17431,"18:40 MSK","May 17, 2026", listOf(10,13,15,20,23,44),false),
+                  DrawResult(17430,"18:25 MSK","May 17, 2026", listOf(10,14,17,31,34,36),false),
+                  DrawResult(17429,"16:30 MSK","May 17, 2026", listOf(3,7,9,28,33,44),false),
+                  DrawResult(17428,"13:55 MSK","May 17, 2026", listOf(14,15,16,20,33,37),true),
+                  DrawResult(17427,"13:40 MSK","May 17, 2026", listOf(3,13,24,27,41,44),true),
+                  DrawResult(17426,"13:25 MSK","May 17, 2026", listOf(19,24,29,34,36,43),true),
+                  DrawResult(17425,"11:30 MSK","May 17, 2026", listOf(1,5,6,21,31,40),true),
+                  DrawResult(17424,"10:00 MSK","May 17, 2026", listOf(5,8,19,23,28,37),true),
+                  DrawResult(17423,"22:59 MSK","May 16, 2026", listOf(2,3,25,26,35,39),false)
+              )
+
+              fun fetchResults(): List<DrawResult> {
+                  return try {
+                      val req = Request.Builder()
+                          .url("https://gosloto.co.za/6x45/results")
+                          .header("User-Agent", "Mozilla/5.0")
+                          .build()
+                      val resp = client.newCall(req).execute()
+                      val doc = Jsoup.parse(resp.body?.string() ?: return FALLBACK)
+                      val res = mutableListOf<DrawResult>()
+                      for (row in doc.select(".result-row,.draw-result,tr.result")) {
+                          val nums = row.select(".ball,.number,.num,td")
+                              .mapNotNull { it.text().trim().toIntOrNull() }
+                              .filter { it in 1..45 }
+                          if (nums.size == 6) {
+                              val dn = row.select(".draw-number").firstOrNull()
+                                  ?.text()?.replace(Regex("[^0-9]"), "")?.toIntOrNull() ?: 0
+                              val tm = row.select(".time,.draw-time").firstOrNull()?.text() ?: "00:00 MSK"
+                              val dt = row.select(".date,.draw-date").firstOrNull()?.text() ?: ""
+                              val im = try { tm.split(":")[0].toInt() < 14 } catch (e: Exception) { false }
+                              if (dn > 0) res.add(DrawResult(dn, tm, dt, nums.sorted(), im))
+                          }
+                          if (res.size >= 20) break
+                      }
+                      if (res.size >= 5) res else FALLBACK
+                  } catch (e: Exception) {
+                      Log.e("DS", e.message ?: "")
+                      FALLBACK
+                  }
+              }
+
+              fun computeStats(draws: List<DrawResult>): NumberStats {
+                  val freq = (1..45).associateWith { 0 }.toMutableMap()
+                  val ls = (1..45).associateWith { 9999 }.toMutableMap()
+                  draws.forEachIndexed { idx, d ->
+                      d.numbers.forEach { n ->
+                          freq[n] = (freq[n] ?: 0) + 1
+                          if (ls[n] == 9999) ls[n] = idx
+                      }
+                  }
+                  val s = freq.entries.sortedByDescending { it.value }
+                  return NumberStats(
+                      s.take(10).map { it.key },
+                      s.takeLast(10).map { it.key },
+                      ls.entries.sortedByDescending { it.value }.take(10).map { it.key },
+                      freq
+                  )
+              }
+
+              fun fetchPredictions(): Pair<List<Int>, List<Int>> {
+                  return try {
+                      val req = Request.Builder().url("https://gosloto6x45.com")
+                          .header("User-Agent", "Mozilla/5.0").build()
+                      val resp = client.newCall(req).execute()
+                      val doc = Jsoup.parse(resp.body?.string() ?: return fallbackPred())
+                      val m = doc.select(".morning .ball").mapNotNull { it.text().trim().toIntOrNull() }.filter { it in 1..45 }
+                      val e = doc.select(".evening .ball").mapNotNull { it.text().trim().toIntOrNull() }.filter { it in 1..45 }
+                      if (m.size == 6 && e.size == 6) Pair(m, e) else fallbackPred()
+                  } catch (e: Exception) { fallbackPred() }
+              }
+
+              fun fallbackPred() = Pair(listOf(9,18,22,34,38,45), listOf(7,15,27,31,34,43))
+          }
+          """)
+
+          # ── SplashActivity.kt
+          w(kt+"/SplashActivity.kt", """package com.gosloto645.app
+          import android.content.Intent
+          import android.graphics.Color
+          import android.graphics.Typeface
+          import android.os.Bundle
+          import android.os.Handler
+          import android.os.Looper
+          import android.view.Gravity
+          import android.view.animation.AlphaAnimation
+          import android.widget.LinearLayout
+          import android.widget.ProgressBar
+          import android.widget.TextView
+          import androidx.appcompat.app.AppCompatActivity
+
+          class SplashActivity : AppCompatActivity() {
+              override fun onCreate(s: Bundle?) {
+                  super.onCreate(s)
+                  val dp = resources.displayMetrics.density
+                  val root = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      gravity = Gravity.CENTER
+                      setBackgroundColor(Color.parseColor("#1565C0"))
+                      layoutParams = LinearLayout.LayoutParams(-1, -1)
+                  }
+                  val lb = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      gravity = Gravity.CENTER
+                      background = android.graphics.drawable.GradientDrawable().apply {
+                          setColor(Color.WHITE); cornerRadius = 24 * dp
+                      }
+                      val sz = (90 * dp).toInt()
+                      layoutParams = LinearLayout.LayoutParams(sz, sz)
+                  }
+                  lb.addView(TextView(this).apply {
+                      text = "G"; textSize = 32f
+                      setTextColor(Color.parseColor("#1565C0"))
+                      setTypeface(typeface, Typeface.BOLD)
+                      gravity = Gravity.CENTER
+                  })
+                  lb.addView(TextView(this).apply {
+                      text = "6/45"; textSize = 13f
+                      setTextColor(Color.parseColor("#1565C0"))
+                      setTypeface(typeface, Typeface.BOLD)
+                      gravity = Gravity.CENTER
+                  })
                   root.addView(lb)
-                  root.addView(TextView(this).apply{text="Gosloto 6/45";textSize=24f;setTextColor(Color.WHITE);gravity=Gravity.CENTER
-                      val lp=LinearLayout.LayoutParams(-2,-2);lp.topMargin=(18*dp).toInt();layoutParams=lp})
-                  root.addView(TextView(this).apply{text="Russia National Lottery";textSize=11f;setTextColor(Color.parseColor("#90CAF9"));gravity=Gravity.CENTER})
-                  root.addView(ProgressBar(this).apply{isIndeterminate=true
-                      indeterminateTintList=android.content.res.ColorStateList.valueOf(Color.parseColor("#90CAF9"))
-                      val lp=LinearLayout.LayoutParams((28*dp).toInt(),(28*dp).toInt());lp.topMargin=(28*dp).toInt();layoutParams=lp})
-                  setContentView(root);root.startAnimation(AlphaAnimation(0f,1f).apply{duration=800})
-                  Handler(Looper.getMainLooper()).postDelayed({startActivity(Intent(this,MainActivity::class.java));finish()},2500)}}'''
+                  root.addView(TextView(this).apply {
+                      text = "Gosloto 6/45"; textSize = 24f
+                      setTextColor(Color.WHITE); gravity = Gravity.CENTER
+                      val lp = LinearLayout.LayoutParams(-2, -2)
+                      lp.topMargin = (18 * dp).toInt(); layoutParams = lp
+                  })
+                  root.addView(TextView(this).apply {
+                      text = "Russia National Lottery"; textSize = 11f
+                      setTextColor(Color.parseColor("#90CAF9")); gravity = Gravity.CENTER
+                  })
+                  root.addView(ProgressBar(this).apply {
+                      isIndeterminate = true
+                      indeterminateTintList = android.content.res.ColorStateList.valueOf(Color.parseColor("#90CAF9"))
+                      val lp = LinearLayout.LayoutParams((28 * dp).toInt(), (28 * dp).toInt())
+                      lp.topMargin = (28 * dp).toInt(); layoutParams = lp
+                  })
+                  setContentView(root)
+                  root.startAnimation(AlphaAnimation(0f, 1f).apply { duration = 800 })
+                  Handler(Looper.getMainLooper()).postDelayed({
+                      startActivity(Intent(this, MainActivity::class.java))
+                      finish()
+                  }, 2500)
+              }
+          }
+          """)
 
-          files["MainActivity.kt"] = '''package com.gosloto645.app
-          import android.content.Intent; import android.graphics.*; import android.os.Bundle
-          import android.view.Gravity; import android.widget.*; import androidx.appcompat.app.AppCompatActivity
-          class MainActivity:AppCompatActivity(){
-              override fun onCreate(s:Bundle?){super.onCreate(s)
-                  val dp=resources.displayMetrics.density
-                  val sv=ScrollView(this);val root=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setBackgroundColor(Color.parseColor("#F0F7FF"))}
-                  val hdr=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setBackgroundColor(Color.parseColor("#1565C0"))
-                      setPadding((14*dp).toInt(),(38*dp).toInt(),(14*dp).toInt(),(14*dp).toInt())}
-                  val tr=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER_VERTICAL}
-                  val lb=TextView(this).apply{text="G6";textSize=14f;setTextColor(Color.parseColor("#1565C0"));setTypeface(typeface,Typeface.BOLD);gravity=Gravity.CENTER
-                      background=android.graphics.drawable.GradientDrawable().apply{setColor(Color.WHITE);cornerRadius=10*dp}
-                      val sz=(36*dp).toInt();layoutParams=LinearLayout.LayoutParams(sz,sz)}
-                  val tc=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;val lp=LinearLayout.LayoutParams(0,-2,1f);lp.marginStart=(10*dp).toInt();layoutParams=lp}
-                  tc.addView(TextView(this).apply{text="Gosloto 6/45";textSize=16f;setTextColor(Color.WHITE);setTypeface(typeface,Typeface.BOLD)})
-                  tc.addView(TextView(this).apply{text="Russia Lottery — Live Results and Predictions";textSize=10f;setTextColor(Color.parseColor("#90CAF9"))})
-                  tr.addView(lb);tr.addView(tc);hdr.addView(tr);root.addView(hdr)
-                  val pad=(12*dp).toInt();val inner=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(pad,pad,pad,pad)}
-                  listOf(Triple("Latest Results","Live draw results updated every draw",ResultsActivity::class.java),
-                      Triple("Hot Balls","Most frequent numbers — last 100 draws",HotBallsActivity::class.java),
-                      Triple("Cold Balls","Least frequent numbers",ColdBallsActivity::class.java),
-                      Triple("Overdue Balls","Numbers not drawn recently",OverdueActivity::class.java),
-                      Triple("Morning Predictions","10:00 to 13:55 MSK predictions from gosloto6x45.com",MorningPredActivity::class.java),
-                      Triple("Evening Predictions","16:30 to 22:59 MSK predictions from gosloto6x45.com",EveningPredActivity::class.java),
-                      Triple("History","All past draw results",HistoryActivity::class.java)
-                  ).forEach{(t,sub,cls)->
-                      val row=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER_VERTICAL
-                          background=android.graphics.drawable.GradientDrawable().apply{setColor(Color.parseColor("#F5F9FF"));cornerRadius=12*dp;setStroke(2,Color.parseColor("#E3F0FF"))}
-                          setPadding((12*dp).toInt(),(12*dp).toInt(),(12*dp).toInt(),(12*dp).toInt())
-                          val lp=LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=(8*dp).toInt();layoutParams=lp
-                          isClickable=true;isFocusable=true;setOnClickListener{startActivity(Intent(this@MainActivity,cls))}}
-                      val col=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;layoutParams=LinearLayout.LayoutParams(0,-2,1f)}
-                      col.addView(TextView(this).apply{text=t;textSize=13f;setTextColor(Color.parseColor("#1A237E"));setTypeface(typeface,Typeface.BOLD)})
-                      col.addView(TextView(this).apply{text=sub;textSize=10f;setTextColor(Color.parseColor("#90A4AE"))})
-                      row.addView(col);row.addView(TextView(this).apply{text=">";textSize=22f;setTextColor(Color.parseColor("#BBDEFB"))});inner.addView(row)}
-                  root.addView(inner);sv.addView(root);setContentView(sv)}}'''
+          # ── MainActivity.kt
+          w(kt+"/MainActivity.kt", """package com.gosloto645.app
+          import android.content.Intent
+          import android.graphics.Color
+          import android.graphics.Typeface
+          import android.os.Bundle
+          import android.view.Gravity
+          import android.widget.LinearLayout
+          import android.widget.ScrollView
+          import android.widget.TextView
+          import androidx.appcompat.app.AppCompatActivity
 
-          def make_screen(classname, title, color, btype):
-              return f'''package com.gosloto645.app
-          import android.graphics.Color; import android.graphics.Typeface; import android.os.Bundle
-          import android.view.Gravity; import android.widget.*; import androidx.appcompat.app.AppCompatActivity
-          class {classname}:AppCompatActivity(){{
-              override fun onCreate(s:Bundle?){{super.onCreate(s)
-                  val dp=resources.displayMetrics.density
-                  val draws=DataService.FALLBACK; val stats=DataService.computeStats(draws)
-                  val balls=when(this){{
-                      is HotBallsActivity->stats.hot
-                      is ColdBallsActivity->stats.cold
-                      is OverdueActivity->stats.overdue
-                      is MorningPredActivity->DataService.fallbackPred().first
-                      is EveningPredActivity->DataService.fallbackPred().second
-                      else->draws.take(1).flatMap{{it.numbers}}}}
-                  val bt=when(this){{
-                      is HotBallsActivity->BallType.HOT; is ColdBallsActivity->BallType.COLD
-                      is OverdueActivity->BallType.OVERDUE; is MorningPredActivity->BallType.MORNING
-                      is EveningPredActivity->BallType.EVENING; else->BallType.LATEST}}
-                  val showDraws=when(this){{
-                      is MorningPredActivity->draws.filter{{it.isMorning}}
-                      is EveningPredActivity->draws.filter{{!it.isMorning}}
-                      else->draws}}
-                  val root=LinearLayout(this).apply{{orientation=LinearLayout.VERTICAL;setBackgroundColor(Color.parseColor("#F0F7FF"))}}
-                  val ab=LinearLayout(this).apply{{orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER_VERTICAL
-                      setBackgroundColor(Color.parseColor("{color}"))
-                      setPadding((14*dp).toInt(),(38*dp).toInt(),(14*dp).toInt(),(10*dp).toInt())}}
-                  ab.addView(TextView(this).apply{{text="<";textSize=20f;setTextColor(Color.WHITE);setOnClickListener{{finish()}}}})
-                  ab.addView(TextView(this).apply{{text="{title}";textSize=15f;setTextColor(Color.WHITE);setTypeface(typeface,Typeface.BOLD)
-                      val lp=LinearLayout.LayoutParams(0,-2,1f);lp.marginStart=(10*dp).toInt();layoutParams=lp}})
-                  root.addView(ab)
-                  val sv=ScrollView(this).apply{{layoutParams=LinearLayout.LayoutParams(-1,0,1f)}}
-                  val content=LinearLayout(this).apply{{orientation=LinearLayout.VERTICAL;setPadding((12*dp).toInt(),(12*dp).toInt(),(12*dp).toInt(),(12*dp).toInt())}}
-                  val card=LinearLayout(this).apply{{orientation=LinearLayout.VERTICAL
-                      background=android.graphics.drawable.GradientDrawable().apply{{setColor(Color.parseColor("#F5F9FF"));cornerRadius=14*dp;setStroke(2,Color.parseColor("#E3F0FF"))}}
-                      setPadding((14*dp).toInt(),(14*dp).toInt(),(14*dp).toInt(),(14*dp).toInt())}}
-                  val ballRow=LinearLayout(this).apply{{orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER}}
-                  balls.take(6).forEach{{n->val ball=BallView(this).apply{{number=n;ballType=bt
-                      val sz=(44*dp).toInt();val lp=LinearLayout.LayoutParams(sz,sz);lp.marginEnd=(6*dp).toInt();layoutParams=lp}}
-                      ballRow.addView(ball)}}
-                  card.addView(ballRow);content.addView(card)
-                  showDraws.take(12).forEach{{draw->
-                      val row=LinearLayout(this).apply{{orientation=LinearLayout.VERTICAL
-                          background=android.graphics.drawable.GradientDrawable().apply{{setColor(Color.parseColor("#F5F9FF"));cornerRadius=10*dp;setStroke(2,Color.parseColor("#E3F0FF"))}}
-                          setPadding((10*dp).toInt(),(9*dp).toInt(),(10*dp).toInt(),(9*dp).toInt())
-                          val lp=LinearLayout.LayoutParams(-1,-2);lp.topMargin=(8*dp).toInt();layoutParams=lp}}
-                      val tr=LinearLayout(this).apply{{orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER_VERTICAL}}
-                      tr.addView(TextView(this).apply{{text=draw.time;textSize=12f;setTextColor(Color.parseColor("{color}"));setTypeface(typeface,Typeface.BOLD)}})
-                      tr.addView(TextView(this).apply{{text="  "+draw.date;textSize=10f;setTextColor(Color.parseColor("#90A4AE"));layoutParams=LinearLayout.LayoutParams(0,-2,1f)}})
-                      tr.addView(TextView(this).apply{{text="#"+draw.drawNumber;textSize=9f;setTextColor(Color.parseColor("#90CAF9"))}})
-                      row.addView(tr)
-                      val br=LinearLayout(this).apply{{orientation=LinearLayout.HORIZONTAL;val lp=LinearLayout.LayoutParams(-1,-2);lp.topMargin=(8*dp).toInt();layoutParams=lp}}
-                      draw.numbers.forEach{{n->val b=BallView(this).apply{{number=n;ballType=BallType.NORMAL
-                          val sz=(30*dp).toInt();val lp=LinearLayout.LayoutParams(sz,sz);lp.marginEnd=(4*dp).toInt();layoutParams=lp}};br.addView(b)}}
-                      row.addView(br);content.addView(row)}}
-                  sv.addView(content);root.addView(sv);setContentView(root)}}}}'''
+          class MainActivity : AppCompatActivity() {
+              override fun onCreate(s: Bundle?) {
+                  super.onCreate(s)
+                  val dp = resources.displayMetrics.density
+                  val sv = ScrollView(this)
+                  val root = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      setBackgroundColor(Color.parseColor("#F0F7FF"))
+                  }
+                  // Header
+                  val hdr = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      setBackgroundColor(Color.parseColor("#1565C0"))
+                      setPadding((14*dp).toInt(), (40*dp).toInt(), (14*dp).toInt(), (14*dp).toInt())
+                  }
+                  val tr = LinearLayout(this).apply {
+                      orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+                  }
+                  val lb = TextView(this).apply {
+                      text = "G6"; textSize = 14f
+                      setTextColor(Color.parseColor("#1565C0"))
+                      setTypeface(typeface, Typeface.BOLD); gravity = Gravity.CENTER
+                      background = android.graphics.drawable.GradientDrawable().apply {
+                          setColor(Color.WHITE); cornerRadius = 10 * dp
+                      }
+                      val sz = (36 * dp).toInt()
+                      layoutParams = LinearLayout.LayoutParams(sz, sz)
+                  }
+                  val tc = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      val lp = LinearLayout.LayoutParams(0, -2, 1f)
+                      lp.marginStart = (10 * dp).toInt(); layoutParams = lp
+                  }
+                  tc.addView(TextView(this).apply {
+                      text = "Gosloto 6/45"; textSize = 16f
+                      setTextColor(Color.WHITE); setTypeface(typeface, Typeface.BOLD)
+                  })
+                  tc.addView(TextView(this).apply {
+                      text = "Russia Lottery — Live Results and Predictions"
+                      textSize = 10f; setTextColor(Color.parseColor("#90CAF9"))
+                  })
+                  tr.addView(lb); tr.addView(tc); hdr.addView(tr); root.addView(hdr)
+                  // Menu
+                  val pad = (12 * dp).toInt()
+                  val inner = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      setPadding(pad, pad, pad, pad)
+                  }
+                  val items = listOf(
+                      Triple("Latest Results", "Live draw results updated every draw", ResultsActivity::class.java),
+                      Triple("Hot Balls", "Most frequent numbers — last 100 draws", HotBallsActivity::class.java),
+                      Triple("Cold Balls", "Least frequent numbers", ColdBallsActivity::class.java),
+                      Triple("Overdue Balls", "Numbers not drawn recently", OverdueActivity::class.java),
+                      Triple("Morning Predictions", "10:00 to 13:55 MSK — gosloto6x45.com", MorningPredActivity::class.java),
+                      Triple("Evening Predictions", "16:30 to 22:59 MSK — gosloto6x45.com", EveningPredActivity::class.java),
+                      Triple("History", "All past draw results", HistoryActivity::class.java)
+                  )
+                  items.forEach { (t, sub, cls) ->
+                      val row = LinearLayout(this).apply {
+                          orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+                          background = android.graphics.drawable.GradientDrawable().apply {
+                              setColor(Color.parseColor("#F5F9FF"))
+                              cornerRadius = 12 * dp
+                              setStroke(2, Color.parseColor("#E3F0FF"))
+                          }
+                          setPadding((12*dp).toInt(), (12*dp).toInt(), (12*dp).toInt(), (12*dp).toInt())
+                          val lp = LinearLayout.LayoutParams(-1, -2)
+                          lp.bottomMargin = (8 * dp).toInt(); layoutParams = lp
+                          isClickable = true; isFocusable = true
+                          setOnClickListener { startActivity(Intent(this@MainActivity, cls)) }
+                      }
+                      val col = LinearLayout(this).apply {
+                          orientation = LinearLayout.VERTICAL
+                          layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
+                      }
+                      col.addView(TextView(this).apply {
+                          text = t; textSize = 13f
+                          setTextColor(Color.parseColor("#1A237E"))
+                          setTypeface(typeface, Typeface.BOLD)
+                      })
+                      col.addView(TextView(this).apply {
+                          text = sub; textSize = 10f
+                          setTextColor(Color.parseColor("#90A4AE"))
+                      })
+                      row.addView(col)
+                      row.addView(TextView(this).apply {
+                          text = ">"; textSize = 22f
+                          setTextColor(Color.parseColor("#BBDEFB"))
+                      })
+                      inner.addView(row)
+                  }
+                  root.addView(inner); sv.addView(root); setContentView(sv)
+              }
+          }
+          """)
 
+          # ── Screen activities
           screens = [
-              ("ResultsActivity",     "Latest Results",          "#1565C0", "LATEST"),
-              ("HotBallsActivity",    "Hot Balls",               "#B71C1C", "HOT"),
-              ("ColdBallsActivity",   "Cold Balls",              "#1B5E20", "COLD"),
-              ("OverdueActivity",     "Overdue Balls",           "#4A148C", "OVERDUE"),
-              ("MorningPredActivity", "Morning Predictions",     "#E65100", "MORNING"),
-              ("EveningPredActivity", "Evening Predictions",     "#1A237E", "EVENING"),
-              ("HistoryActivity",     "Draw History",            "#00695C", "NORMAL"),
+              ("ResultsActivity",     "Latest Results",      "#1565C0", "LATEST"),
+              ("HotBallsActivity",    "Hot Balls",           "#B71C1C", "HOT"),
+              ("ColdBallsActivity",   "Cold Balls",          "#1B5E20", "COLD"),
+              ("OverdueActivity",     "Overdue Balls",       "#4A148C", "OVERDUE"),
+              ("MorningPredActivity", "Morning Predictions", "#E65100", "MORNING"),
+              ("EveningPredActivity", "Evening Predictions", "#1A237E", "EVENING"),
+              ("HistoryActivity",     "Draw History",        "#00695C", "NORMAL"),
           ]
-          for classname, title, color, btype in screens:
-              files[f"{classname}.kt"] = make_screen(classname, title, color, btype)
 
-          for fname, content in files.items():
-              path = os.path.join(D, fname)
-              with open(path, 'w') as f:
-                  f.write(content)
-              print(f"Written: {fname}")
+          for cls, title, color, btype in screens:
+              code = """package com.gosloto645.app
+          import android.graphics.Color
+          import android.graphics.Typeface
+          import android.os.Bundle
+          import android.view.Gravity
+          import android.widget.*
+          import androidx.appcompat.app.AppCompatActivity
+
+          class CLS_NAME : AppCompatActivity() {
+              override fun onCreate(s: Bundle?) {
+                  super.onCreate(s)
+                  val dp = resources.displayMetrics.density
+                  val draws = DataService.FALLBACK
+                  val stats = DataService.computeStats(draws)
+                  val balls = when (this) {
+                      is HotBallsActivity -> stats.hot
+                      is ColdBallsActivity -> stats.cold
+                      is OverdueActivity -> stats.overdue
+                      is MorningPredActivity -> DataService.fallbackPred().first
+                      is EveningPredActivity -> DataService.fallbackPred().second
+                      else -> draws.take(1).flatMap { it.numbers }
+                  }
+                  val bt = when (this) {
+                      is HotBallsActivity -> BallType.HOT
+                      is ColdBallsActivity -> BallType.COLD
+                      is OverdueActivity -> BallType.OVERDUE
+                      is MorningPredActivity -> BallType.MORNING
+                      is EveningPredActivity -> BallType.EVENING
+                      else -> BallType.LATEST
+                  }
+                  val showDraws = when (this) {
+                      is MorningPredActivity -> draws.filter { it.isMorning }
+                      is EveningPredActivity -> draws.filter { !it.isMorning }
+                      else -> draws
+                  }
+                  val root = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      setBackgroundColor(Color.parseColor("#F0F7FF"))
+                  }
+                  // AppBar
+                  val ab = LinearLayout(this).apply {
+                      orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+                      setBackgroundColor(Color.parseColor("HDR_COLOR"))
+                      setPadding((14*dp).toInt(), (40*dp).toInt(), (14*dp).toInt(), (10*dp).toInt())
+                  }
+                  ab.addView(TextView(this).apply {
+                      text = "Back"; textSize = 14f; setTextColor(Color.WHITE)
+                      setOnClickListener { finish() }
+                  })
+                  ab.addView(TextView(this).apply {
+                      text = "SCR_TITLE"; textSize = 15f; setTextColor(Color.WHITE)
+                      setTypeface(typeface, Typeface.BOLD)
+                      val lp = LinearLayout.LayoutParams(0, -2, 1f)
+                      lp.marginStart = (10 * dp).toInt(); layoutParams = lp
+                  })
+                  root.addView(ab)
+                  val sv = ScrollView(this).apply {
+                      layoutParams = LinearLayout.LayoutParams(-1, 0, 1f)
+                  }
+                  val content = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      setPadding((12*dp).toInt(), (12*dp).toInt(), (12*dp).toInt(), (12*dp).toInt())
+                  }
+                  // Ball card
+                  val card = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      background = android.graphics.drawable.GradientDrawable().apply {
+                          setColor(Color.parseColor("#F5F9FF"))
+                          cornerRadius = 14 * dp
+                          setStroke(2, Color.parseColor("#E3F0FF"))
+                      }
+                      setPadding((14*dp).toInt(), (14*dp).toInt(), (14*dp).toInt(), (14*dp).toInt())
+                  }
+                  val ballRow = LinearLayout(this).apply {
+                      orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
+                  }
+                  balls.take(6).forEach { n ->
+                      val ball = BallView(this).apply {
+                          number = n; ballType = bt
+                          val sz = (44 * dp).toInt()
+                          val lp = LinearLayout.LayoutParams(sz, sz)
+                          lp.marginEnd = (6 * dp).toInt(); layoutParams = lp
+                      }
+                      ballRow.addView(ball)
+                  }
+                  card.addView(ballRow); content.addView(card)
+                  // Draw list
+                  showDraws.take(12).forEach { draw ->
+                      val row = LinearLayout(this).apply {
+                          orientation = LinearLayout.VERTICAL
+                          background = android.graphics.drawable.GradientDrawable().apply {
+                              setColor(Color.parseColor("#F5F9FF"))
+                              cornerRadius = 10 * dp
+                              setStroke(2, Color.parseColor("#E3F0FF"))
+                          }
+                          setPadding((10*dp).toInt(), (9*dp).toInt(), (10*dp).toInt(), (9*dp).toInt())
+                          val lp = LinearLayout.LayoutParams(-1, -2)
+                          lp.topMargin = (8 * dp).toInt(); layoutParams = lp
+                      }
+                      val tr = LinearLayout(this).apply {
+                          orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+                      }
+                      tr.addView(TextView(this).apply {
+                          text = draw.time; textSize = 12f
+                          setTextColor(Color.parseColor("HDR_COLOR"))
+                          setTypeface(typeface, Typeface.BOLD)
+                      })
+                      tr.addView(TextView(this).apply {
+                          text = "  " + draw.date; textSize = 10f
+                          setTextColor(Color.parseColor("#90A4AE"))
+                          layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
+                      })
+                      tr.addView(TextView(this).apply {
+                          text = "#" + draw.drawNumber.toString()
+                          textSize = 9f; setTextColor(Color.parseColor("#90CAF9"))
+                      })
+                      row.addView(tr)
+                      val br = LinearLayout(this).apply {
+                          orientation = LinearLayout.HORIZONTAL
+                          val lp = LinearLayout.LayoutParams(-1, -2)
+                          lp.topMargin = (8 * dp).toInt(); layoutParams = lp
+                      }
+                      draw.numbers.forEach { n ->
+                          val b = BallView(this).apply {
+                              number = n; ballType = BallType.NORMAL
+                              val sz = (30 * dp).toInt()
+                              val lp = LinearLayout.LayoutParams(sz, sz)
+                              lp.marginEnd = (4 * dp).toInt(); layoutParams = lp
+                          }
+                          br.addView(b)
+                      }
+                      row.addView(br); content.addView(row)
+                  }
+                  sv.addView(content); root.addView(sv); setContentView(root)
+              }
+          }
+          """
+              code = code.replace("CLS_NAME", cls)
+              code = code.replace("HDR_COLOR", color)
+              code = code.replace("SCR_TITLE", title)
+              w(kt + "/" + cls + ".kt", code)
+
+          print("ALL FILES WRITTEN OK")
           PYEOF
 
       - name: Setup Gradle wrapper
