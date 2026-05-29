@@ -13,6 +13,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+
+      - name: Delete old conflicting source files
+        run: |
+          rm -f app/src/main/java/com/gosloto645/app/HotColdOverdueActivities.kt
+          rm -f app/src/main/java/com/gosloto645/app/PredictionActivities.kt
+          rm -f app/src/main/java/com/gosloto645/app/HotBallsActivity.kt
+          rm -f app/src/main/java/com/gosloto645/app/ColdBallsActivity.kt
+          rm -f app/src/main/java/com/gosloto645/app/OverdueActivity.kt
+          rm -f app/src/main/java/com/gosloto645/app/MorningPredActivity.kt
+          rm -f app/src/main/java/com/gosloto645/app/EveningPredActivity.kt
+          rm -f app/src/main/java/com/gosloto645/app/ResultsActivity.kt
+          rm -f app/src/main/java/com/gosloto645/app/HistoryActivity.kt
+          rm -f app/src/main/java/com/gosloto645/app/BaseActivity.kt
+          rm -f app/src/main/java/com/gosloto645/app/BallView.kt
+          rm -f app/src/main/java/com/gosloto645/app/DataService.kt
+          rm -f app/src/main/java/com/gosloto645/app/SplashActivity.kt
+          rm -f app/src/main/java/com/gosloto645/app/MainActivity.kt
+          rm -f app/src/main/java/com/gosloto645/app/BallStatsActivity.kt
+          echo "Old files cleaned up"
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
