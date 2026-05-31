@@ -37,13 +37,18 @@ jobs:
           chmod +x gradlew
       - name: Build Release APK
         run: ./gradlew assembleRelease --stacktrace
-      - name: Sign APK
+      - name: Align and Sign APK
         run: |
-          BUILD_TOOLS=$(ls $ANDROID_SDK_ROOT/build-tools/ | sort -V | tail -1)
-          APK=app/build/outputs/apk/release/app-release-unsigned.apk
-          OUT=app/build/outputs/apk/release/app-release.apk
-          $ANDROID_SDK_ROOT/build-tools/$BUILD_TOOLS/apksigner sign --ks app/keystore.jks --ks-pass pass:gosloto123 --key-pass pass:gosloto123 --out $OUT $APK
-          echo "APK signed!"
+          BT=$(ls $ANDROID_SDK_ROOT/build-tools/ | sort -V | tail -1)
+          TOOLS=$ANDROID_SDK_ROOT/build-tools/$BT
+          UNSIGNED=app/build/outputs/apk/release/app-release-unsigned.apk
+          ALIGNED=app/build/outputs/apk/release/app-release-aligned.apk
+          SIGNED=app/build/outputs/apk/release/app-release.apk
+          echo "Using build tools: $BT"
+          $TOOLS/zipalign -v -p 4 $UNSIGNED $ALIGNED
+          $TOOLS/apksigner sign --ks app/keystore.jks --ks-pass pass:gosloto123 --key-pass pass:gosloto123 --out $SIGNED $ALIGNED
+          $TOOLS/apksigner verify $SIGNED && echo "Verification OK"
+          ls -lh app/build/outputs/apk/release/
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
